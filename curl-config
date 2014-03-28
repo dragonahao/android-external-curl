@@ -1,0 +1,178 @@
+#! /bin/sh
+#***************************************************************************
+#                                  _   _ ____  _
+#  Project                     ___| | | |  _ \| |
+#                             / __| | | | |_) | |
+#                            | (__| |_| |  _ <| |___
+#                             \___|\___/|_| \_\_____|
+#
+# Copyright (C) 2001 - 2012, Daniel Stenberg, <daniel@haxx.se>, et al.
+#
+# This software is licensed as described in the file COPYING, which
+# you should have received as part of this distribution. The terms
+# are also available at http://curl.haxx.se/docs/copyright.html.
+#
+# You may opt to use, copy, modify, merge, publish, distribute and/or sell
+# copies of the Software, and permit persons to whom the Software is
+# furnished to do so, under the terms of the COPYING file.
+#
+# This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
+# KIND, either express or implied.
+#
+###########################################################################
+
+prefix=/usr/local
+exec_prefix=${prefix}
+includedir=${prefix}/include
+cppflag_curl_staticlib=-DCURL_STATICLIB
+
+usage()
+{
+    cat <<EOF
+Usage: curl-config [OPTION]
+
+Available values for OPTION include:
+
+  --built-shared says 'yes' if libcurl was built shared
+  --ca        ca bundle install path
+  --cc        compiler
+  --cflags    pre-processor and compiler flags
+  --checkfor [version] check for (lib)curl of the specified version
+  --configure the arguments given to configure when building curl
+  --features  newline separated list of enabled features
+  --help      display this help and exit
+  --libs      library linking information
+  --prefix    curl install prefix
+  --protocols newline separated list of enabled protocols
+  --static-libs static libcurl library linking information
+  --version   output version information
+  --vernum    output the version information as a number (hexadecimal)
+EOF
+
+    exit $1
+}
+
+if test $# -eq 0; then
+    usage 1
+fi
+
+while test $# -gt 0; do
+    case "$1" in
+    # this deals with options in the style
+    # --option=value and extracts the value part
+    # [not currently used]
+    -*=*) value=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+    *) value= ;;
+    esac
+
+    case "$1" in
+    --built-shared)
+        echo no
+        ;;
+
+    --ca)
+        echo ""
+        ;;
+
+    --cc)
+        echo "/usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-gcc"
+        ;;
+
+    --prefix)
+        echo "$prefix"
+        ;;
+
+    --feature|--features)
+        for feature in SSL libz NTLM NTLM_WB TLS-SRP ""; do
+            test -n "$feature" && echo "$feature"
+        done
+        ;;
+
+    --protocols)
+        for protocol in DICT FILE FTP FTPS GOPHER HTTP HTTPS IMAP IMAPS POP3 POP3S RTSP SMTP SMTPS TELNET TFTP; do
+            echo "$protocol"
+        done
+        ;;
+
+    --version)
+        echo libcurl 7.36.0
+        exit 0
+        ;;
+
+    --checkfor)
+        checkfor=$2
+        cmajor=`echo $checkfor | cut -d. -f1`
+        cminor=`echo $checkfor | cut -d. -f2`
+        # when extracting the patch part we strip off everything after a
+        # dash as that's used for things like version 1.2.3-CVS
+        cpatch=`echo $checkfor | cut -d. -f3 | cut -d- -f1`
+        checknum=`echo "$cmajor*256*256 + $cminor*256 + ${cpatch:-0}" | bc`
+        numuppercase=`echo 072400 | tr 'a-f' 'A-F'`
+        nownum=`echo "obase=10; ibase=16; $numuppercase" | bc`
+
+        if test "$nownum" -ge "$checknum"; then
+          # silent success
+          exit 0
+        else
+          echo "requested version $checkfor is newer than existing 7.36.0"
+          exit 1
+        fi
+        ;;
+
+    --vernum)
+        echo 072400
+        exit 0
+        ;;
+
+    --help)
+        usage 0
+        ;;
+
+    --cflags)
+        if test "X$cppflag_curl_staticlib" = "X-DCURL_STATICLIB"; then
+          CPPFLAG_CURL_STATICLIB="-DCURL_STATICLIB "
+        else
+          CPPFLAG_CURL_STATICLIB=""
+        fi
+        if test "X${prefix}/include" = "X/usr/include"; then
+          echo "$CPPFLAG_CURL_STATICLIB"
+        else
+          echo "${CPPFLAG_CURL_STATICLIB}-I${prefix}/include"
+        fi
+        ;;
+
+    --libs)
+        if test "X${exec_prefix}/lib" != "X/usr/lib" -a "X${exec_prefix}/lib" != "X/usr/lib64"; then
+           CURLLIBDIR="-L${exec_prefix}/lib "
+        else
+           CURLLIBDIR=""
+        fi
+        if test "Xyes" = "Xyes"; then
+          echo ${CURLLIBDIR}-lcurl -lssl -lcrypto -lz -nostdlib -Bdynamic -Wl,-T,/usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/arm-eabi/lib/ldscripts/armelf.x -Wl,-dynamic-linker,/system/bin/linker -Wl,--gc-sections -Wl,-z,nocopyreloc -L/usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/lib -Wl,-z,noexecstack -Wl,-rpath-link=/usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/lib -lc -llog -lcutils -lstdc++ -Wl,--no-undefined /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/libgcc.a /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/crtend.o -lm /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/crtbegin.o
+        else
+          echo ${CURLLIBDIR}-lcurl
+        fi
+        ;;
+
+    --static-libs)
+        if test "Xyes" != "Xno" ; then
+          echo ${exec_prefix}/lib/libcurl.a  -lssl -lcrypto -lz -nostdlib -Bdynamic -Wl,-T,/usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/arm-eabi/lib/ldscripts/armelf.x -Wl,-dynamic-linker,/system/bin/linker -Wl,--gc-sections -Wl,-z,nocopyreloc -L/usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/lib -Wl,-z,noexecstack -Wl,-rpath-link=/usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/lib -lc -llog -lcutils -lstdc++ -Wl,--no-undefined /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/libgcc.a /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/crtend.o -lm /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/crtbegin.o
+        else
+          echo "curl was built with static libraries disabled" >&2
+          exit 1
+        fi
+        ;;
+
+    --configure)
+        echo " '--host=arm-eabi' 'CC=/usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-gcc' '--with-random=/dev/urandom' 'CPPFLAGS=-I/usr/local/android/ndk-r9c/platforms/android-18/arch-arm/usr/include -I /usr/local/android/kbe-rk3188-android/external/curl/include/  -I /usr/local/android/kbe-rk3188-android/external/openssl/include   -I /usr/local/android/kbe-rk3188-android/external/curl   -I /usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/STATIC_LIBRARIES/libcurl_intermediates   -I /usr/local/android/kbe-rk3188-android/dalvik/libnativehelper/include/nativehelper   -I /usr/local/android/kbe-rk3188-android/system/core/include   -I /usr/local/android/kbe-rk3188-android/hardware/libhardware/include   -I /usr/local/android/kbe-rk3188-android/hardware/libhardware_legacy/include   -I /usr/local/android/kbe-rk3188-android/hardware/ril/include   -I /usr/local/android/kbe-rk3188-android/dalvik/libnativehelper/include   -I /usr/local/android/kbe-rk3188-android/frameworks/base/include   -I /usr/local/android/kbe-rk3188-android/frameworks/base/opengl/include   -I /usr/local/android/kbe-rk3188-android/frameworks/base/native/include   -I /usr/local/android/kbe-rk3188-android/external/skia/include   -I /usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/include   -I /usr/local/android/kbe-rk3188-android/bionic/libc/arch-arm/include   -I /usr/local/android/kbe-rk3188-android/bionic/libc/include   -I /usr/local/android/kbe-rk3188-android/bionic/libstdc++/include   -I /usr/local/android/kbe-rk3188-android/bionic/libc/kernel/common   -I /usr/local/android/kbe-rk3188-android/bionic/libc/kernel/arch-arm   -I /usr/local/android/kbe-rk3188-android/bionic/libm/include   -I /usr/local/android/kbe-rk3188-android/bionic/libm/include/arch/arm   -I /usr/local/android/kbe-rk3188-android/bionic/libthread_db/include -include /usr/local/android/kbe-rk3188-android/build/core/combo/include/arch/linux-arm/AndroidConfig.h -I /usr/local/android/kbe-rk3188-android/system/core/include/arch/linux-arm/ -D__ARM_ARCH_7__ -DANDROID -DNDEBUG -DHAVE_CONFIG_H' 'CFLAGS=-fno-exceptions -Wno-multichar -msoft-float -fpic -ffunction-sections -funwind-tables -fstack-protector -Wa,--noexecstack -Werror=format-security -fno-short-enums -march=armv5te -mtune=xscale  -Wno-psabi -mthumb-interwork  -fmessage-length=0 -W -Wall -Wno-unused -Winit-self -Wpointer-arith -Werror=return-type -Werror=non-virtual-dtor -Werror=address -Werror=sequence-point  -g -Wstrict-aliasing=2 -finline-functions -fno-inline-functions-called-once -fgcse-after-reload -frerun-cse-after-loop -frename-registers  -mthumb -Os -fomit-frame-pointer -fno-strict-aliasing -finline-limit=64   -Wpointer-arith -Wwrite-strings -Wunused -Winline -Wnested-externs -Wmissing-declarations -Wmissing-prototypes -Wno-long-long -Wfloat-equal -Wno-multichar -Wsign-compare -Wno-format-nonliteral -Wendif-labels -Wstrict-prototypes -Wdeclaration-after-statement -Wno-system-headers' 'LIBS=-nostdlib -Bdynamic -Wl,-T,/usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/arm-eabi/lib/ldscripts/armelf.x -Wl,-dynamic-linker,/system/bin/linker -Wl,--gc-sections -Wl,-z,nocopyreloc -L/usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/lib -Wl,-z,noexecstack -Wl,-rpath-link=/usr/local/android/kbe-rk3188-android/out/target/product/rk31sdk/obj/lib -lc -llog -lcutils -lstdc++  -Wl,--no-undefined /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/libgcc.a  /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/crtend.o -lm /usr/local/android/kbe-rk3188-android/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/lib/gcc/arm-eabi/4.6.x-google/crtbegin.o' 'host_alias=arm-eabi'"
+        ;;
+
+    *)
+        echo "unknown option: $1"
+        usage 1
+        ;;
+    esac
+    shift
+done
+
+exit 0
